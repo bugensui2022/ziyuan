@@ -6,7 +6,9 @@
 
 ## 📦 物料列表清单
 | **`cyber-energy-dashboard.js`** | HA卡片 | 赛博朋克风家庭电表监控大屏卡片，支持实时功率旋转表盘与环比统计。 |
-卡片配置方式
+
+cyber-energy-dashboard.js HA卡片配置方式
+
 ```yaml
 type: custom:cyber-energy-dashboard
 title_main: 家庭
