@@ -6,6 +6,7 @@
 
 ## 📦 物料列表清单
  **`cyber-energy-dashboard.js`** | HA卡片 | 赛博朋克风家庭电表监控大屏卡片，支持实时功率旋转表盘与环比统计。 
+ 
  **`cyber-guest-wifi.js`** | HA卡片 | 赛博朋克风访客Wi-Fi全景大屏卡片，支持扫码免密直连、密码一键复制、3D全息机甲舱与路由器遥测 
 
 cyber-energy-dashboard.js HA卡片配置方式
