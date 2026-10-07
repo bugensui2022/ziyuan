@@ -10,6 +10,8 @@
  **`cyber-guest-wifi.js`** | HA卡片 | 赛博朋克风访客Wi-Fi全景大屏卡片，支持扫码免密直连、密码一键复制、3D全息机甲舱与路由器遥测 
  
  **`Music Assistant 智能语音点歌蓝图：`** 基于 Home Assistant 对话意图，支持语音随机听歌（100-500首滑块）、点播歌手专辑（1-30首滑块）、单曲点播与切歌，完美适配回音壁与 NAS 本地曲库，多房间一键复用。
+
+ 
  
 
 cyber-energy-dashboard.js HA卡片配置方式
