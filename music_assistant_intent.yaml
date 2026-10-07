@@ -1,0 +1,189 @@
+blueprint:
+  name: Music Assistant 智能语音点歌助手
+  description: >
+    基于 Home Assistant 语音对话 (Conversation) 意图与 Music Assistant 实现语音点歌、随机播放、歌手歌单检索与切歌控制。
+  domain: automation
+  input:
+    music_assistant_server:
+      name: Music Assistant 实例
+      description: "Music Assistant 的配置条目 (Config Entry ID)。从下拉列表中直接选择"
+      selector:
+        config_entry:
+          integration: music_assistant
+    target_player:
+      name: 播放目标 (媒体播放器)
+      description: "负责播放音乐的目标设备或播放器实体"
+      selector:
+        target:
+          entity:
+            domain: media_player
+    random_tracks_count:
+      name: 随机播放歌曲数量
+      description: "语音说“播放音乐”时，从曲库中随机抓取的歌曲数量 (100 - 500 首)"
+      default: 100
+      selector:
+        number:
+          min: 100
+          max: 500
+          step: 50
+          mode: slider
+          unit_of_measurement: 首
+    artist_search_limit:
+      name: 歌手/歌单搜索歌曲上限
+      description: "搜索歌手、歌单或相关歌曲时的检索数量限制 (1 - 30 首)"
+      default: 10
+      selector:
+        number:
+          min: 1
+          max: 30
+          step: 1
+          mode: slider
+          unit_of_measurement: 首
+    library_only:
+      name: 仅搜索曲库 (Library Only)
+      description: "是否只在已同步到 Music Assistant 的本地/已收藏曲库中搜索 (开启可避免流媒体全网模糊结果)"
+      default: true
+      selector:
+        boolean: {}
+    enable_shuffle:
+      name: 歌手专辑自动随机播放
+      description: "点播歌手或专辑时，是否自动开启随机播放 (Shuffle)"
+      default: true
+      selector:
+        boolean: {}
+
+triggers:
+  - trigger: conversation
+    command:
+      - 播放{name}(的歌|的歌曲|的专辑)
+    id: album
+  - trigger: conversation
+    command:
+      - 播放(音乐|上一首|上1首|下一首|下1首)
+    id: play
+  - trigger: conversation
+    command: 播放歌曲{title}
+    id: track
+
+conditions: []
+
+actions:
+  - alias: 播放某某的歌曲专辑
+    if:
+      - condition: trigger
+        id:
+          - album
+    then:
+      - alias: 音乐搜索校验
+        action: music_assistant.search
+        data:
+          limit: !input artist_search_limit
+          library_only: !input library_only
+          config_entry_id: !input music_assistant_server
+          media_type:
+            - artist
+            - playlist
+          name: "{{ trigger.slots.name }}"
+        response_variable: results
+      - if:
+          - condition: or
+            conditions:
+              - condition: template
+                value_template: "{{ results.artists | length > 0 }}"
+              - condition: template
+                value_template: "{{ results.playlists | length > 0 }}"
+        then:
+          - set_conversation_response: "{{ trigger.slots.name }}的歌已经播放"
+          - if:
+              - condition: template
+                value_template: "{{ true }}"
+            then:
+              - action: media_player.shuffle_set
+                data:
+                  shuffle: !input enable_shuffle
+                target: !input target_player
+          - action: music_assistant.play_media
+            target: !input target_player
+            data:
+              media_id: "{{ trigger.slots.name }}"
+              media_type: >-
+                {% if results.playlists | length > 0 %}playlist{% else %}artist{% endif %}
+              enqueue: replace
+        else:
+          - set_conversation_response: "抱歉，没有找到{{ trigger.slots.name }}的歌曲！"
+
+  - alias: 播放音乐、上一首、下一首
+    if:
+      - condition: trigger
+        id:
+          - play
+    then:
+      - if:
+          - condition: template
+            value_template: "{{ trigger.sentence == '播放音乐' }}"
+        then:
+          - set_conversation_response: 已经随机开始播放音乐
+          - alias: 随机从曲库获取歌曲
+            action: music_assistant.get_library
+            data:
+              config_entry_id: !input music_assistant_server
+              media_type: track
+              order_by: random
+              limit: !input random_tracks_count
+            response_variable: random_tracks
+          - action: music_assistant.play_media
+            target: !input target_player
+            data:
+              media_type: track
+              enqueue: replace
+              media_id: "{{ random_tracks['items'] | map(attribute='uri') | list }}"
+
+      - if:
+          - condition: template
+            value_template: "{{ trigger.sentence in ('播放上一首', '播放上1首') }}"
+        then:
+          - action: media_player.media_previous_track
+            data: {}
+            target: !input target_player
+          - set_conversation_response: 搞定
+
+      - if:
+          - condition: template
+            value_template: "{{ trigger.sentence in ('播放下一首', '播放下1首') }}"
+        then:
+          - action: media_player.media_next_track
+            data: {}
+            target: !input target_player
+          - set_conversation_response: 搞定
+
+  - alias: 播放某某歌曲
+    if:
+      - condition: trigger
+        id:
+          - track
+    then:
+      - alias: 搜索指定单曲
+        action: music_assistant.search
+        data:
+          limit: 1
+          library_only: !input library_only
+          config_entry_id: !input music_assistant_server
+          media_type:
+            - track
+          name: "{{ trigger.slots.title }}"
+        response_variable: results2
+      - if:
+          - condition: template
+            value_template: "{{ results2.tracks | length > 0 }}"
+        then:
+          - set_conversation_response: "歌曲{{ trigger.slots.title }}已经播放"
+          - action: music_assistant.play_media
+            target: !input target_player
+            data:
+              media_id: "{{ results2.tracks[0].uri }}"
+              media_type: track
+              enqueue: play
+        else:
+          - set_conversation_response: "抱歉，没有{{ trigger.slots.title }}这首歌！"
+
+mode: single
