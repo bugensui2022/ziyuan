@@ -64,6 +64,11 @@ triggers:
   - trigger: conversation
     command: 播放歌曲{title}
     id: track
+  - trigger: conversation
+    command:
+      - 播放暂停
+      - 暂停播放
+    id: pause
 
 conditions: []
 
@@ -185,5 +190,16 @@ actions:
               enqueue: play
         else:
           - set_conversation_response: "抱歉，没有{{ trigger.slots.title }}这首歌！"
+
+  - alias: 暂停播放
+    if:
+      - condition: trigger
+        id:
+          - pause
+    then:
+      - action: media_player.media_pause
+        data: {}
+        target: !input target_player
+      - set_conversation_response: 已经暂停播放
 
 mode: single
